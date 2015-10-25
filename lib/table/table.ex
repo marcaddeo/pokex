@@ -1,4 +1,5 @@
 defmodule Pokex.Table do
+  alias Pokex.Player
   alias Pokex.Seat
   alias Pokex.Deck
   use GenServer
@@ -67,7 +68,8 @@ defmodule Pokex.Table do
   """
 
   def new do
-    GenServer.start_link(__MODULE__, %__MODULE__{})
+    {:ok, pid} = GenServer.start_link(__MODULE__, %__MODULE__{})
+    pid
   end
 
   def sit(pid, player) do
@@ -78,15 +80,61 @@ defmodule Pokex.Table do
     GenServer.cast(pid, {:sit, seat, player})
   end
 
+  def seats(pid) do
+    GenServer.call(pid, :seats)
+  end
+
   ### Server (callbacks)
   def handle_cast({:sit, player}, state) do
     {open_seat, _} = Enum.find(state.seats, fn ({_, player}) -> player == nil end)
-    seats = Keyword.put(open_seat, player)
-    {:noreply, %__MODULE__{state | seats: seats}}
+    handle_cast({:sit, open_seat, player}, state)
   end
 
-  def handle_cat({:sit, seat, player}, state) do
-    seats = Keyword.put(seat, player)
-    {:noreply, %__MODULE__{state | seats: seats}}
+  def handle_cast({:sit, seat, player}, state) when seat |> is_integer do
+    seat =
+      seat
+      |> Integer.to_string
+      |> String.to_atom
+
+    handle_cast({:sit, seat, player}, state)
+  end
+
+  def handle_cast({:sit, seat, player}, state) when seat |> is_atom do
+    try do
+      {:ok, nil} = Keyword.fetch(state.seats, seat)
+      false = player |> Player.sitting?
+
+      player |> Player.sit(self)
+
+      seats =
+        state.seats
+        |> Keyword.put(seat, player)
+        |> sort_seats
+
+      {:noreply, %__MODULE__{state | seats: seats}}
+    rescue
+      _ -> {:noreply, state}
+    end
+  end
+
+  def handle_call(:seats, _, state) do
+    {:reply, state.seats, state}
+  end
+
+  defp sort_seats(seats) do
+    seats
+    |> Enum.sort(fn ({a, _}, {b, _}) ->
+      a =
+        a
+        |> Atom.to_string
+        |> String.to_integer
+
+      b =
+        b
+        |> Atom.to_string
+        |> String.to_integer
+
+      a < b
+    end)
   end
 end
