@@ -6,7 +6,18 @@ defmodule Pokex.Table do
 
   defstruct [
     deck: Deck.new,
-    seats: ["1": nil, "2": nil, "3": nil, "4": nil, "5": nil, "6": nil, "7": nil, "8": nil, "9": nil, "10": nil],
+    seats: [
+      "1":   nil,
+      "2":   nil,
+      "3":   nil,
+      "4":   nil,
+      "5":   nil,
+      "6":   nil,
+      "7":   nil,
+      "8":   nil,
+      "9":   nil,
+      "10":  nil
+    ],
     hand: nil,
     pot: 0,
   ]
