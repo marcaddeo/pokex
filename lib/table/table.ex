@@ -84,31 +84,36 @@ defmodule Pokex.Table do
     GenServer.call(pid, :seats)
   end
 
-  ### Server (callbacks)
-  def handle_cast({:sit, player}, state) do
-    {open_seat, _} = Enum.find(state.seats, fn ({_, player}) -> player == nil end)
-    handle_cast({:sit, open_seat, player}, state)
+  def players(pid) do
+    GenServer.call(pid, :players)
   end
 
-  def handle_cast({:sit, seat, player}, state) when seat |> is_integer do
-    seat =
-      seat
+  ### Server (callbacks)
+  def handle_cast({:sit, player}, state) do
+    {open_position, _} = Enum.find(state.seats, fn ({_, seat}) -> seat == nil end)
+    handle_cast({:sit, open_position, player}, state)
+  end
+
+  def handle_cast({:sit, position, player}, state) when position |> is_integer do
+    position =
+      position
       |> Integer.to_string
       |> String.to_atom
 
-    handle_cast({:sit, seat, player}, state)
+    handle_cast({:sit, position, player}, state)
   end
 
-  def handle_cast({:sit, seat, player}, state) when seat |> is_atom do
+  def handle_cast({:sit, position, player}, state) when position |> is_atom do
     try do
-      {:ok, nil} = Keyword.fetch(state.seats, seat)
+      {:ok, nil} = Keyword.fetch(state.seats, position)
       false = player |> Player.sitting?
 
       player |> Player.sit(self)
 
+      seat  = player |> Seat.new
       seats =
         state.seats
-        |> Keyword.put(seat, player)
+        |> Keyword.put(position, seat)
         |> sort_seats
 
       {:noreply, %__MODULE__{state | seats: seats}}
@@ -119,6 +124,14 @@ defmodule Pokex.Table do
 
   def handle_call(:seats, _, state) do
     {:reply, state.seats, state}
+  end
+
+  def handle_call(:players, _, state) do
+    players =
+      state.seats
+      |> Enum.map(fn (seat) ->
+        seat.player
+      end)
   end
 
   defp sort_seats(seats) do

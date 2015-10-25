@@ -1,7 +1,9 @@
 defmodule Pokex.Table.Seat do
-  defstruct player: nil, playing: false
+  use GenServer
+  defstruct player: nil, playing: false, bet: 0
 
   def new(player) do
-    %__MODULE__{player: player}
+    {:ok, pid} = GenServer.start_link(__MODULE__, %__MODULE__{player: player})
+    pid
   end
 end
