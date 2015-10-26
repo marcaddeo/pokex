@@ -1,6 +1,6 @@
 defmodule Pokex.Table do
+  alias Pokex.Table.Seat
   alias Pokex.Player
-  alias Pokex.Seat
   alias Pokex.Deck
   use GenServer
 
@@ -84,11 +84,15 @@ defmodule Pokex.Table do
   end
 
   def sit(pid, player) do
-    GenServer.cast(pid, {:sit, player})
+    GenServer.call(pid, {:sit, player})
   end
 
   def sit(pid, seat, player) do
-    GenServer.cast(pid, {:sit, seat, player})
+    GenServer.call(pid, {:sit, seat, player})
+  end
+
+  def stand(pid, seat) do
+    GenServer.call(pid, {:stand, seat})
   end
 
   def seats(pid) do
@@ -100,37 +104,53 @@ defmodule Pokex.Table do
   end
 
   ### Server (callbacks)
-  def handle_cast({:sit, player}, state) do
-    {open_position, _} = Enum.find(state.seats, fn ({_, seat}) -> seat == nil end)
-    handle_cast({:sit, open_position, player}, state)
+  def handle_call({:sit, player}, from, state) do
+    case Enum.find(state.seats, fn ({_, seat}) -> seat == nil end) do
+      {open_position, _} -> handle_call({:sit, open_position, player}, from, state)
+      nil                -> {:reply, {:error, "Table full"}, state}
+    end
   end
 
-  def handle_cast({:sit, position, player}, state) when position |> is_integer do
+  def handle_call({:sit, position, player}, from, state) when position |> is_integer do
     position =
       position
       |> Integer.to_string
       |> String.to_atom
 
-    handle_cast({:sit, position, player}, state)
+    handle_call({:sit, position, player}, from, state)
   end
 
-  def handle_cast({:sit, position, player}, state) when position |> is_atom do
+  def handle_call({:sit, position, player}, _, state) when position |> is_atom do
     try do
       {:ok, nil} = Keyword.fetch(state.seats, position)
       false = player |> Player.sitting?
 
-      player |> Player.sit(self)
-
       seat  = player |> Seat.new
+
+      player |> Player.sit(self, seat)
+
       seats =
         state.seats
         |> Keyword.put(position, seat)
         |> sort_seats
 
-      {:noreply, %__MODULE__{state | seats: seats}}
+      {:reply, {:ok, seat}, %__MODULE__{state | seats: seats}}
     rescue
-      _ -> {:noreply, state}
+      _ -> {:reply, {:error, "Table full or already sitting at a table"}, state}
     end
+  end
+
+  def handle_call({:stand, seat}, _, state) do
+    {position, _} =
+      state.seats
+      |> Enum.find(fn ({_, s}) -> s == seat end)
+
+    seats =
+      state.seats
+      |> Keyword.put(position, nil)
+      |> sort_seats
+
+    {:reply, :ok, %__MODULE__{state | seats: seats}}
   end
 
   def handle_call(:seats, _, state) do
@@ -140,9 +160,16 @@ defmodule Pokex.Table do
   def handle_call(:players, _, state) do
     players =
       state.seats
-      |> Enum.map(fn (seat) ->
-        seat.player
+      |> Enum.filter(fn ({_, seat}) ->
+        case seat do
+          nil -> false
+          _   -> true
+        end
       end)
+      |> Enum.map(fn ({_, seat}) ->
+        Seat.player(seat)
+      end)
+      {:reply, players, state}
   end
 
   defp sort_seats(seats) do

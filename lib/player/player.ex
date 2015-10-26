@@ -1,5 +1,6 @@
 defmodule Pokex.Player do
   alias Pokex.Table.Seat
+  alias Pokex.Table
   use GenServer
   defstruct pocket: [], purse: 0, sitting: false, table: nil, seat: nil
 
@@ -8,12 +9,12 @@ defmodule Pokex.Player do
     pid
   end
 
-  def sit(pid, table) do
-    GenServer.cast(pid, {:sit, table})
+  def sit(pid, table, seat) do
+    GenServer.cast(pid, {:sit, table, seat})
   end
 
   def stand(pid) do
-    GenServer.cast(pid, :stand)
+    GenServer.call(pid, :stand)
   end
 
   def sitting?(pid) do
@@ -25,12 +26,13 @@ defmodule Pokex.Player do
   end
 
   ### Server (callbacks)
-  def handle_cast({:sit, table}, state) do
-    {:noreply, %__MODULE__{state | sitting: true, table: table}}
+  def handle_cast({:sit, table, seat}, state) do
+    {:noreply, %__MODULE__{state | sitting: true, table: table, seat: seat}}
   end
 
-  def handle_cast(:stand, state) do
-    {:noreply, %__MODULE__{state | sitting: false, table: nil}}
+  def handle_call(:stand, _, state) do
+    :ok = Table.stand(state.table, state.seat)
+    {:reply, :ok, %__MODULE__{state | sitting: false, table: nil, seat: nil}}
   end
 
   def handle_call(:sitting?, _, state) do
