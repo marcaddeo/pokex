@@ -109,17 +109,15 @@ defmodule Pokex.Table do
   end
 
   def handle_call({:sit, player, position}, _, state) when position |> is_atom do
-    try do
-      {:ok, nil} = Keyword.fetch(state.seats, position)
+    case Keyword.fetch(state.seats, position) do
+      {:ok, nil} ->
+        seat  = player |> Seat.new
+        seats =
+          state.seats
+          |> Keyword.put(position, seat)
+          |> sort_seats
 
-      seat  = player |> Seat.new
-      seats =
-        state.seats
-        |> Keyword.put(position, seat)
-        |> sort_seats
-
-      {:reply, {:ok, seat}, %__MODULE__{state | seats: seats}}
-    rescue
+        {:reply, {:ok, seat}, %__MODULE__{state | seats: seats}}
       _ -> {:reply, {:error, "Table full"}, state}
     end
   end
