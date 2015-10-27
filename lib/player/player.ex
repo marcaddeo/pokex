@@ -25,6 +25,10 @@ defmodule Pokex.Player do
     GenServer.cast({:bet, amount})
   end
 
+  def seat(pid) do
+    GenServer.call(pid, :seat)
+  end
+
   ### Server (callbacks)
   def handle_call({:sit, table, position}, _, state) do
     if not state.sitting do
@@ -53,5 +57,9 @@ defmodule Pokex.Player do
     else
       {:noreply, state}
     end
+  end
+
+  def handle_call(:seat, _, state) do
+    {:reply, state.seat, state}
   end
 end

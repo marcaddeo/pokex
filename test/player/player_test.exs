@@ -67,6 +67,17 @@ defmodule Pokex.PlayerTest do
     assert table |> player_count == 0
   end
 
+  test "a player can return its seat" do
+    table = Table.new
+    player = Player.new
+
+    player |> Player.sit(table)
+
+    seat = player |> Player.seat
+
+    assert seat |> is_pid == true
+  end
+
   defp player_count(table) do
     table
     |> Table.players
