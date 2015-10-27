@@ -7,11 +7,9 @@ defmodule Pokex.Player.PlayerTest do
     table = Table.new
     player = Player.new
 
-    Table.sit(table, player)
+    :ok = Player.sit(player, table)
 
-    players = table |> player_count
-
-    assert players == 1
+    assert table |> player_count == 1
     assert player |> Player.sitting? == true
   end
 
@@ -23,9 +21,10 @@ defmodule Pokex.Player.PlayerTest do
     assert table1 |> player_count == 0
     assert table2 |> player_count == 0
 
-    Table.sit(table1, player)
-    Table.sit(table2, player)
+    :ok = Player.sit(player, table1)
+    {:error, _} = Player.sit(player, table2)
 
+    assert player |> Player.sitting? == true
     assert table1 |> player_count == 1
     assert table2 |> player_count == 0
   end
@@ -35,22 +34,18 @@ defmodule Pokex.Player.PlayerTest do
 
     1..10
     |> Enum.each(fn (_) ->
-      Table.sit(table, Player.new)
+      Player.sit(Player.new, table)
     end)
 
     assert table |> player_count == 10
 
-    {code, _} =
-      table
-      |> Table.sit(Player.new)
+    {error, _} = Player.new |> Player.sit(table)
 
-    assert code == :error
+    assert error == :error
 
-    {code, _} =
-      table
-      |> Table.sit(2, Player.new)
+    {error, _} = Player.new |> Player.sit(table, 2)
 
-    assert code == :error
+    assert error == :error
   end
 
   test "a player can stand up from a table" do
@@ -59,13 +54,13 @@ defmodule Pokex.Player.PlayerTest do
 
     assert table |> player_count == 0
 
-    {:ok, _} = Table.sit(table, player)
+    :ok = Player.sit(player, table)
 
     assert table |> player_count == 1
 
     assert player |> Player.sitting? == true
 
-    player |> Player.stand
+    :ok = player |> Player.stand
 
     assert player |> Player.sitting? == false
 

@@ -83,18 +83,6 @@ defmodule Pokex.Table do
     pid
   end
 
-  def sit(pid, player) do
-    GenServer.call(pid, {:sit, player})
-  end
-
-  def sit(pid, seat, player) do
-    GenServer.call(pid, {:sit, seat, player})
-  end
-
-  def stand(pid, seat) do
-    GenServer.call(pid, {:stand, seat})
-  end
-
   def seats(pid) do
     GenServer.call(pid, :seats)
   end
@@ -104,31 +92,27 @@ defmodule Pokex.Table do
   end
 
   ### Server (callbacks)
-  def handle_call({:sit, player}, from, state) do
+  def handle_call({:sit, player, nil}, from, state) do
     case Enum.find(state.seats, fn ({_, seat}) -> seat == nil end) do
-      {open_position, _} -> handle_call({:sit, open_position, player}, from, state)
+      {open_position, _} -> handle_call({:sit, player, open_position}, from, state)
       nil                -> {:reply, {:error, "Table full"}, state}
     end
   end
 
-  def handle_call({:sit, position, player}, from, state) when position |> is_integer do
+  def handle_call({:sit, player, position}, from, state) when position |> is_integer do
     position =
       position
       |> Integer.to_string
       |> String.to_atom
 
-    handle_call({:sit, position, player}, from, state)
+    handle_call({:sit, player, position}, from, state)
   end
 
-  def handle_call({:sit, position, player}, _, state) when position |> is_atom do
+  def handle_call({:sit, player, position}, _, state) when position |> is_atom do
     try do
       {:ok, nil} = Keyword.fetch(state.seats, position)
-      false = player |> Player.sitting?
 
       seat  = player |> Seat.new
-
-      player |> Player.sit(self, seat)
-
       seats =
         state.seats
         |> Keyword.put(position, seat)
@@ -136,7 +120,7 @@ defmodule Pokex.Table do
 
       {:reply, {:ok, seat}, %__MODULE__{state | seats: seats}}
     rescue
-      _ -> {:reply, {:error, "Table full or already sitting at a table"}, state}
+      _ -> {:reply, {:error, "Table full"}, state}
     end
   end
 

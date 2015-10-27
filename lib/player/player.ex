@@ -9,8 +9,8 @@ defmodule Pokex.Player do
     pid
   end
 
-  def sit(pid, table, seat) do
-    GenServer.cast(pid, {:sit, table, seat})
+  def sit(pid, table, position \\ nil) do
+    GenServer.call(pid, {:sit, table, position})
   end
 
   def stand(pid) do
@@ -26,12 +26,19 @@ defmodule Pokex.Player do
   end
 
   ### Server (callbacks)
-  def handle_cast({:sit, table, seat}, state) do
-    {:noreply, %__MODULE__{state | sitting: true, table: table, seat: seat}}
+  def handle_call({:sit, table, position}, _, state) do
+    if not state.sitting do
+      case GenServer.call(table, {:sit, self, position}) do
+        {:ok, seat} -> {:reply, :ok, %__MODULE__{state | sitting: true, table: table, seat: seat}}
+        {:error, message} -> {:reply, {:error, message}, state}
+      end
+    else
+      {:reply, {:error, "Already sitting"}, state}
+    end
   end
 
   def handle_call(:stand, _, state) do
-    :ok = Table.stand(state.table, state.seat)
+    GenServer.call(state.table, {:stand, state.seat})
     {:reply, :ok, %__MODULE__{state | sitting: false, table: nil, seat: nil}}
   end
 
