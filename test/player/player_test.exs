@@ -1,4 +1,4 @@
-defmodule Pokex.Player.PlayerTest do
+defmodule Pokex.PlayerTest do
   alias Pokex.Table
   alias Pokex.Player
   use ExUnit.Case
